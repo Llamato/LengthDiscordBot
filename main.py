@@ -7,11 +7,10 @@ import os
 import threading
 import queue
 from typing import Iterable
-
 import discord
-import lengthtools
+import LengthTools as lengthtools
 import aiohttp
-TOKEN = os.environ['LengthBotToken']
+TOKEN = os.environ['LBT']
 client = discord.Client()
 
 CodePrefix = "LP:"
@@ -79,10 +78,10 @@ async def get_code_from_attachment(url):
         return code
 
 
-async def deconstruct_message(msg):  # Must be reworked to return command even if code can not be found before release.
+async def deconstruct_message(msg):  # Must be reworked to return command even if code can not be found before release. So much so to that. I guess I forgot about this.
     if len(msg.attachments) > 0:
         url = msg.attachments[0].url
-        if url.endswith(".length"):
+        if url.endswith(".length") or url.endswith(".len"):
             code = await get_code_from_attachment(url)
             command = "run"
             return command,code
@@ -107,16 +106,23 @@ async def deconstruct_message(msg):  # Must be reworked to return command even i
         code = lengthtools.disassembler.disassemble_code(code)
         return command, code
 
+def remove_thread(id):
+    DiscordThreads[id].stop()
+    DiscordThreads.pop(id)
 
-async def process_output_streams():
+async def process_output_streams(): # This uses pulling. It is therefor very inefficent. Somebody please find a better way to do this.
     while True:
-        for author_id, discord_thread in DiscordThreads.items():
+        for author_id, discord_thread in list(DiscordThreads.items()):
             if discord_thread.OutputStream.io_changed.is_set():
                 while not discord_thread.OutputStream.io_queue.empty():
                     message = discord_thread.OutputStream.readline()
                     if not message.isspace():
                         await discord_thread.OutputStream.channel.send(message)
                 discord_thread.OutputStream.io_changed.clear()
+                if discord_thread.State == lengthtools.interpreter.LengthThread.States.Stopped:
+                    message = discord_thread.OutputStream.current_message
+                    await discord_thread.OutputStream.channel.send(message)
+                    remove_thread(author_id)
         await asyncio.sleep(0.1)
 
 
@@ -129,8 +135,7 @@ async def on_message(message):
            await message.channel.send("You are currently not running a program")
         elif user_command == "stop" and message.author.id in DiscordThreads.keys() and DiscordThreads[message.author.id].State != lengthtools.interpreter.Stopped:
             try:
-                DiscordThreads[message.author.id].stop()
-                DiscordThreads.pop(message.author.id)
+                remove_thread(message.author.id)
                 await message.channel.send("Your program has been stopped")
             except:
                 await message.channel.send("An unknown error accrued. Your program could not be stopped.")
