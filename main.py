@@ -57,7 +57,6 @@ class DiscordIoStream:
         return lines
 
     def read(self):
-
         raise NotImplementedError
         #item = self.input_queue.queue[0]
         #char = item[0]
@@ -68,7 +67,6 @@ class DiscordIoStream:
         self.io_queue.queue.clear()
         self.io_queue.queue.clear()
 
-
 async def get_code_from_attachment(url):
     async with aiohttp.ClientSession() as session:
         response = await session.get(url)
@@ -76,7 +74,6 @@ async def get_code_from_attachment(url):
         raw_string = raw_data.decode("utf-8")
         code = lengthtools.disassembler.disassemble_code(raw_string)
         return code
-
 
 async def deconstruct_message(msg):  # Must be reworked to return command even if code can not be found before release. So much so to that. I guess I forgot about this.
     if len(msg.attachments) > 0:
@@ -110,7 +107,7 @@ def remove_thread(id):
     DiscordThreads[id].stop()
     DiscordThreads.pop(id)
 
-async def process_output_streams(): # This uses pulling. It is therefor very inefficent. Somebody please find a better way to do this.
+async def process_output_streams():  # This uses pulling. It is therefor very inefficent. Somebody please find a better way to do this.
     while True:
         for author_id, discord_thread in list(DiscordThreads.items()):
             if discord_thread.OutputStream.io_changed.is_set():
@@ -124,7 +121,6 @@ async def process_output_streams(): # This uses pulling. It is therefor very ine
                     await discord_thread.OutputStream.channel.send(message)
                     remove_thread(author_id)
         await asyncio.sleep(0.1)
-
 
 @client.event
 async def on_message(message):
@@ -157,11 +153,9 @@ async def on_message(message):
         elif message.author.id in DiscordThreads.keys():
             DiscordThreads[message.author.id].InputStream.write(message.content)
 
-
 @client.event
 async def on_ready():
     print("Length discord bot online!")
-
 
 client.loop.create_task(process_output_streams())
 client.run(TOKEN)
